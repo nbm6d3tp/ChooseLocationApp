@@ -1,37 +1,176 @@
-import {StyleSheet, Text, TextInput, View, Image, Button} from 'react-native';
-import React, {useState} from 'react';
+import {
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+  Image,
+  Button,
+  Alert,
+} from 'react-native';
+import React, {useEffect, useState} from 'react';
 import OutlineButton from '../components/OutlineButton';
 import Colors from '../constants/colors';
 import * as ImagePicker from 'expo-image-picker';
-
+import * as Location from 'expo-location';
+import {useNavigation, useRoute} from '@react-navigation/native';
+import MapView from 'react-native-maps';
+import {Marker} from 'react-native-maps';
+import {Place} from '../models/place';
 const AddPlaceScreen = () => {
-  const [status, requestPermission] = ImagePicker.useCameraPermissions();
-  const [image, setImage] = useState(null);
+  const navigation = useNavigation();
+  const route = useRoute();
+
+  useEffect(() => {
+    console.log('hello');
+    setLocation({
+      lat: route.params?.location.lat,
+      lon: route.params?.location.lon,
+    });
+  }, [route.params?.location]);
+  const [imagePickerStatus, requestImagePickerPermission] =
+    ImagePicker.useCameraPermissions();
+  const [getLocationStatus, requestGetLocationPermission] =
+    Location.useForegroundPermissions();
+
+  const [image, setImage] = useState();
+  const [title, setTitle] = useState('');
+  const [location, setLocation] = useState({
+    lat: null,
+    lon: null,
+  });
+
+  const addPlaceHandler = () => {
+    navigation.navigate('AllPlacesScreen', {
+      place: new Place(title, image, location, 1),
+    });
+  };
+  const takeImageHandler = async () => {
+    if (!imagePickerStatus.granted) {
+      try {
+        const response = await requestImagePickerPermission();
+        if (!response.granted) {
+          Alert.alert(
+            'You have to grant the permission to get access to all fonctionalities of the application!',
+          );
+          return;
+        }
+      } catch (error) {
+        Alert.alert('An error occurred!');
+        return;
+      }
+    }
+    try {
+      const result = await ImagePicker.launchCameraAsync({
+        allowsEditing: true,
+        aspect: [4, 3],
+      });
+      setImage(result.assets[0].uri);
+    } catch (error) {
+      return;
+    }
+  };
+
+  const getUserLocation = async () => {
+    if (!getLocationStatus.granted) {
+      try {
+        const response = await requestGetLocationPermission();
+        if (!response.granted) {
+          Alert.alert(
+            'You have to grant the permission to get access to all fonctionalities of the application!',
+          );
+          return;
+        }
+      } catch (error) {
+        Alert.alert('An error occurred!');
+        return;
+      }
+    }
+    try {
+      const result = await Location.getCurrentPositionAsync({});
+      setLocation({
+        lat: result.coords.latitude,
+        lon: result.coords.longitude,
+      });
+    } catch (error) {
+      Alert.alert('An error occurred!');
+      return;
+    }
+  };
+
+  const pickOnMapHandler = async () => {
+    navigation.navigate('MapScreen');
+  };
+
+  const changeTextHandler = changedText => {
+    setTitle(changedText);
+  };
 
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Title</Text>
-      <TextInput cursorColor={Colors.gray700} style={styles.textInput} />
+      <TextInput
+        onChangeText={changeTextHandler}
+        value={title}
+        cursorColor={Colors.gray700}
+        style={styles.textInput}
+      />
       <View style={styles.imageContainer}>
-        <Text style={styles.fallbackText}>No image taken yet.</Text>
-        <Image style={styles.image} />
+        {image ? (
+          <Image source={{uri: image}} style={styles.image} />
+        ) : (
+          <Text style={styles.fallbackText}>No image taken yet.</Text>
+        )}
       </View>
-      <OutlineButton icon="camera" style={styles.button}>
+      <OutlineButton
+        onPress={takeImageHandler}
+        icon="camera"
+        style={styles.button}>
         Take Image
       </OutlineButton>
       <View style={styles.imageContainer}>
-        <Text style={styles.fallbackText}>No location taken yet.</Text>
-        <Image style={styles.image} />
+        {location.lat && location.lon ? (
+          <MapView
+            rotateEnabled={false}
+            minZoomLevel={14}
+            scrollEnabled={false}
+            zoomEnabled={false}
+            style={styles.image}
+            region={{
+              latitude: location.lat,
+              longitude: location.lon,
+              latitudeDelta: 0.02,
+              longitudeDelta: 0.02,
+            }}>
+            <Marker
+              coordinate={{
+                latitude: location.lat,
+                longitude: location.lon,
+              }}
+            />
+          </MapView>
+        ) : (
+          <Text style={styles.fallbackText}>No location taken yet.</Text>
+        )}
       </View>
       <View style={styles.buttonsContainer}>
-        <OutlineButton icon="location" style={styles.smallButton}>
+        <OutlineButton
+          onPress={getUserLocation}
+          icon="location"
+          style={styles.smallButton}>
           Locate User
         </OutlineButton>
-        <OutlineButton icon="map" style={styles.smallButton}>
+        <OutlineButton
+          onPress={pickOnMapHandler}
+          icon="map"
+          style={styles.smallButton}>
           Pick on Map
         </OutlineButton>
       </View>
-      <Button style={styles.button} title="Add Place" />
+      <Button
+        onPress={addPlaceHandler}
+        style={styles.button}
+        title="Add Place"
+      />
     </View>
   );
 };
@@ -66,7 +205,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   fallbackText: {color: Colors.gray700},
-  image: {},
+  image: {
+    height: '100%',
+    width: '100%',
+  },
   buttonsContainer: {
     flexDirection: 'row',
     marginBottom: 15,

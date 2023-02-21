@@ -43,7 +43,13 @@ const RootNavigator = () => {
         name="AddPlaceScreen"
         component={AddPlaceScreen}
       />
-      <Stack.Screen name="MapScreen" component={MapScreen} />
+      <Stack.Screen
+        options={{
+          title: 'Map',
+        }}
+        name="MapScreen"
+        component={MapScreen}
+      />
     </Stack.Navigator>
   );
 };

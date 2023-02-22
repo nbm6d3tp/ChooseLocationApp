@@ -16,12 +16,12 @@ import {useNavigation, useRoute} from '@react-navigation/native';
 import MapView from 'react-native-maps';
 import {Marker} from 'react-native-maps';
 import {Place} from '../models/place';
+import {insertPlace} from '../util/database';
 const AddPlaceScreen = () => {
   const navigation = useNavigation();
   const route = useRoute();
 
   useEffect(() => {
-    console.log('hello');
     setLocation({
       lat: route.params?.location.lat,
       lon: route.params?.location.lon,
@@ -39,10 +39,40 @@ const AddPlaceScreen = () => {
     lon: null,
   });
 
-  const addPlaceHandler = () => {
-    navigation.navigate('AllPlacesScreen', {
-      place: new Place(title, image, location, 1),
-    });
+  const addPlaceHandler = async () => {
+    if (!getLocationStatus.granted) {
+      try {
+        const response = await requestGetLocationPermission();
+        if (!response.granted) {
+          Alert.alert(
+            'You have to grant the permission to get access to all fonctionalities of the application!',
+          );
+          return;
+        }
+      } catch (error) {
+        Alert.alert('An error occurred!');
+        return;
+      }
+    }
+    try {
+      const address = await Location.reverseGeocodeAsync({
+        latitude: location.lat,
+        longitude: location.lon,
+      });
+      const readableAddress = `${address[0].streetNumber} ${address[0].street}, ${address[0].city} ${address[0].postalCode}`;
+      const locationObject = {
+        ...location,
+        address: readableAddress,
+      };
+      insertPlace({
+        title: title,
+        imageUri: image,
+        ...locationObject,
+      });
+      navigation.navigate('AllPlacesScreen');
+    } catch (error) {
+      Alert.alert('An error occurred!');
+    }
   };
   const takeImageHandler = async () => {
     if (!imagePickerStatus.granted) {

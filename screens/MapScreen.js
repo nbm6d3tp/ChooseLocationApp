@@ -2,21 +2,27 @@ import {Alert, StyleSheet} from 'react-native';
 import React, {useState, useLayoutEffect, useCallback} from 'react';
 import MapView from 'react-native-maps';
 import {Marker} from 'react-native-maps';
-import {useNavigation} from '@react-navigation/native';
+import {useNavigation, useRoute} from '@react-navigation/native';
 import IconButton from '../components/IconButton';
 
 const MapScreen = () => {
   const navigation = useNavigation();
+  const route = useRoute();
+
   const [location, setLocation] = useState({
-    lat: null,
-    lon: null,
+    lat: route.params ? route.params.lat : null,
+    lon: route.params ? route.params.lon : null,
   });
 
   const clickOnMapHandler = event => {
-    setLocation({
-      lat: event.nativeEvent.coordinate.latitude,
-      lon: event.nativeEvent.coordinate.longitude,
-    });
+    if (!route.params) {
+      setLocation({
+        lat: event.nativeEvent.coordinate.latitude,
+        lon: event.nativeEvent.coordinate.longitude,
+      });
+    } else {
+      return;
+    }
   };
   const saveHandler = useCallback(() => {
     if (location.lat && location.lon) {
@@ -28,18 +34,20 @@ const MapScreen = () => {
   }, [navigation, location]);
 
   useLayoutEffect(() => {
-    navigation.setOptions({
-      // eslint-disable-next-line react/no-unstable-nested-components
-      headerRight: ({tintColor}) => (
-        <IconButton
-          icon="save"
-          size={24}
-          color={tintColor}
-          onPress={saveHandler}
-        />
-      ),
-    });
-  }, [navigation, saveHandler]);
+    if (!route.params) {
+      navigation.setOptions({
+        // eslint-disable-next-line react/no-unstable-nested-components
+        headerRight: ({tintColor}) => (
+          <IconButton
+            icon="save"
+            size={24}
+            color={tintColor}
+            onPress={saveHandler}
+          />
+        ),
+      });
+    }
+  }, [navigation, saveHandler, route?.params]);
   return (
     <MapView
       onPress={clickOnMapHandler}
